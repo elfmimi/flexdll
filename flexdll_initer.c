@@ -10,10 +10,6 @@
 /* Custom entry point to perform relocations before the real
    entry point is called */
 
-/* The adress of the flexdll_relocate function is passed in an
-   environment variable. This is ugly, but I couldn't find a cleaner
-   solution. Let me know if you have some idea! */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <windows.h>
@@ -23,10 +19,7 @@ typedef int func(void*);
 extern int reloctbl;
 
 static int flexdll_init() {
-  func *sym = 0;
-  char *s = getenv("FLEXDLL_RELOCATE");
-  if (!s) { fprintf(stderr, "Cannot find FLEXDLL_RELOCATE\n"); return FALSE; }
-  sscanf(s,"%p",&sym);
+  func *sym = (func *)GetProcAddress(GetModuleHandle(NULL), "__flexdll_relocate");
   if (sym && sym(&reloctbl)) return TRUE;
   return FALSE;
 }

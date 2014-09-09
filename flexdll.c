@@ -339,7 +339,8 @@ static void *find_symbol_global(void *data, const char *name) {
   return NULL;
 }
 
-int flexdll_relocate(void *tbl) {
+__declspec(dllexport)
+int __flexdll_relocate(void *tbl) {
   if (!tbl) { printf("No master relocation table\n"); return 0; }
   relocate_master(find_symbol_global, NULL, tbl);
   if (error) return 0;
@@ -349,29 +350,10 @@ int flexdll_relocate(void *tbl) {
 void *flexdll_dlopen(const char *file, int mode) {
   void *handle;
   dlunit *unit;
-  char flexdll_relocate_env[256];
-
   int exec = (mode & FLEXDLL_RTLD_NOEXEC ? 0 : 1);
 
   error = 0;
   if (!file) return &main_unit;
-
-#ifdef MSVC
-  sprintf(flexdll_relocate_env,"%p",&flexdll_relocate);
-  _putenv_s("FLEXDLL_RELOCATE", flexdll_relocate_env);
-#endif
-#ifdef CYGWIN
-  sprintf(flexdll_relocate_env,"%p",&flexdll_relocate);
-  setenv("FLEXDLL_RELOCATE", flexdll_relocate_env, 1);
-#endif
-#ifdef MINGW
-  {
-    sprintf(flexdll_relocate_env,"FLEXDLL_RELOCATE=%p",&flexdll_relocate);
-    char* s = malloc(strlen(flexdll_relocate_env) + 1);
-    strcpy(s, flexdll_relocate_env);
-    putenv(s);
-  }
-#endif
 
   handle = ll_dlopen(file, exec);
   if (!handle) { if (!error) error = 1; return NULL; }
@@ -388,13 +370,6 @@ void *flexdll_dlopen(const char *file, int mode) {
     push_unit(unit);
   }
   if (mode & FLEXDLL_RTLD_GLOBAL) unit->global=1;
-
-  if (exec) {
-    /* Relocation has already been done if the flexdll's DLL entry point
-       is used */
-    flexdll_relocate(ll_dlsym(handle, "reloctbl"));
-    if (error) { flexdll_dlclose(unit); return NULL; }
-  }
 
   return unit;
 }
